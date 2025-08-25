@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>YouTube Manual Playlist Control (Dynamic)</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin-top: 40px;
+            }
+            button {
+                margin: 5px;
+                padding: 10px 15px;
+                border: none;
+                border-radius: 6px;
+                background: #ff0000;
+                color: white;
+                cursor: pointer;
+            }
+            button:hover {
+                background: #cc0000;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>YouTube Playlist (Manual Control — Dynamic)</h1>
+        <p>
+            This playlist fetches video IDs dynamically from a YouTube playlist
+            using the YouTube Data API v3.
+            <br />
+            Also alert notification when video ends.
+        </p>
+
+        <div id="player"></div>
+        <div>
+            <button onclick="playPrevious()">Previous</button>
+            <button onclick="player.playVideo()">Play</button>
+            <button onclick="player.pauseVideo()">Pause</button>
+            <button onclick="player.stopVideo()">Stop</button>
+            <button onclick="playNext()">Next</button>
+        </div>
+
+        <script src="https://www.youtube.com/iframe_api"></script>
+        <script>
+            const API_KEY = "AIzaSyAcIM98aKj9rtD9PXIvdRZxM_oz6D1By08"; // ← Replace with your YouTube Data API v3 key
+            const PLAYLIST_ID = "PLu0W_9lII9agpFUAlPFe_VNSlXW5uE0YL";
+            let playlist = [];
+            let currentIndex = 0;
+            let player;
+
+            // Fetch playlist videos
+            async function fetchPlaylistVideos() {
+                let nextPage = "";
+                do {
+                    const url =
+                        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${PLAYLIST_ID}&key=${API_KEY}` +
+                        (nextPage ? `&pageToken=${nextPage}` : "");
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    data.items.forEach((item) => {
+                        playlist.push(item.snippet.resourceId.videoId);
+                    });
+                    nextPage = data.nextPageToken || "";
+                } while (nextPage);
+            }
+
+            // Global function required by YouTube API
+            async function onYouTubeIframeAPIReady() {
+                await fetchPlaylistVideos();
+                if (playlist.length === 0) {
+                    alert("No videos found in playlist!");
+                    return;
+                }
+
+                player = new YT.Player("player", {
+                    height: "390",
+                    width: "640",
+                    videoId: playlist[currentIndex],
+                    events: {
+                        onReady: () =>
+                            console.log(
+                                "Player Ready, playlist size:",
+                                playlist.length
+                            ),
+                        onStateChange: onPlayerStateChange,
+                    },
+                });
+            }
+
+            function onPlayerStateChange(event) {
+                if (event.data === YT.PlayerState.ENDED) {
+                    alert(
+                        `✅ Video ${currentIndex + 1} of ${
+                            playlist.length
+                        } finished!`
+                    );
+                    if (currentIndex === playlist.length - 1) {
+                        alert("🎉 Playlist complete!");
+                    }
+                }
+            }
+
+            function playNext() {
+                if (currentIndex < playlist.length - 1) {
+                    currentIndex++;
+                    player.loadVideoById(playlist[currentIndex]);
+                } else {
+                    alert("🚫 End of playlist reached!");
+                }
+            }
+
+            function playPrevious() {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    player.loadVideoById(playlist[currentIndex]);
+                } else {
+                    alert("🚫 Already at the first video!");
+                }
+            }
+        </script>
+    </body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>YouTube API Demo</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin-top: 50px;
+            }
+            button {
+                margin: 5px;
+                padding: 10px 15px;
+                border: none;
+                border-radius: 6px;
+                background: #ff0000;
+                color: white;
+                cursor: pointer;
+            }
+            button:hover {
+                background: #cc0000;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>YouTube Video Control Demo</h1>
+        <p>
+            This demo showcases basic YouTube IFrame Player API controls like
+            play, pause, stop, seek, mute, and unmute.
+            <br/> Also alert notification when video ends.
+        </p>
+        <!-- Div for YouTube player -->
+
+        <div id="player"></div>
+
+        <!-- Control Buttons -->
+        <div>
+            <button onclick="player.playVideo()">Play</button>
+            <button onclick="player.pauseVideo()">Pause</button>
+            <button onclick="player.stopVideo()">Stop</button>
+            <button onclick="player.seekTo(60, true)">Skip to 1:00</button>
+            <button onclick="player.mute()">Mute</button>
+            <button onclick="player.unMute()">Unmute</button>
+        </div>
+
+        <!-- Load YouTube IFrame Player API -->
+        <script src="https://www.youtube.com/iframe_api"></script>
+        <script>
+            var player;
+            function onYouTubeIframeAPIReady() {
+                player = new YT.Player("player", {
+                    height: "390",
+                    width: "640",
+                    videoId: "j8nAHeVKL08", // ✅ your video ID
+                    events: {
+                        onReady: onPlayerReady,
+                        onStateChange: onPlayerStateChange,
+                    },
+                });
+            }
+
+            function onPlayerReady(event) {
+                console.log("Player is ready!");
+            }
+
+            function onPlayerStateChange(event) {
+                console.log("Player state changed:", event.data);
+
+                // ✅ Check if video has ended
+                if (event.data === YT.PlayerState.ENDED) {
+                    alert("🎉 The video has finished playing!");
+                }
+            }
+        </script>
+    </body>
+</html>
