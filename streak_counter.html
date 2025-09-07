@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Duolingo-Style Streak Counter</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                    Roboto, sans-serif;
+                background: linear-gradient(135deg, #58cc02, #89e219);
+                min-height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 20px;
+            }
+
+            .streak-container {
+                background: white;
+                border-radius: 16px;
+                padding: 40px;
+                text-align: center;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+                max-width: 450px;
+                width: 100%;
+                position: relative;
+            }
+
+            .streak-flame {
+                font-size: 4em;
+                margin-bottom: 10px;
+                filter: drop-shadow(0 4px 8px rgba(255, 140, 0, 0.3));
+                animation: flicker 2s infinite alternate;
+            }
+
+            @keyframes flicker {
+                0% {
+                    transform: scale(1) rotate(-2deg);
+                }
+                100% {
+                    transform: scale(1.05) rotate(2deg);
+                }
+            }
+
+            .streak-number {
+                font-size: 3.5em;
+                font-weight: bold;
+                color: #ff9600;
+                margin: 10px 0;
+                text-shadow: 0 2px 4px rgba(255, 150, 0, 0.2);
+            }
+
+            .streak-label {
+                font-size: 1.2em;
+                color: #777;
+                margin-bottom: 30px;
+                font-weight: 500;
+            }
+
+            .calendar-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+                padding: 0 10px;
+            }
+
+            .nav-button {
+                background: #58cc02;
+                border: none;
+                color: white;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                font-size: 1.2em;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s ease;
+                box-shadow: 0 2px 6px rgba(88, 204, 2, 0.2);
+            }
+
+            .nav-button:hover {
+                background: #46a302;
+                transform: translateY(-1px);
+            }
+
+            .month-year-display {
+                font-size: 1.1em;
+                font-weight: bold;
+                color: #333;
+                min-width: 140px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .month-display {
+                font-size: 1.2em;
+                color: #58cc02;
+            }
+
+            .year-display {
+                font-size: 0.9em;
+                color: #666;
+                margin-top: 2px;
+            }
+
+            .year-nav {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 10px;
+                margin: 10px 0;
+            }
+
+            .year-nav-button {
+                background: #e3f2fd;
+                border: none;
+                color: #1976d2;
+                width: 28px;
+                height: 28px;
+                border-radius: 4px;
+                font-size: 1em;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+            .year-nav-button:hover {
+                background: #bbdefb;
+            }
+
+            .current-year {
+                font-weight: bold;
+                color: #1976d2;
+                min-width: 50px;
+            }
+
+            .calendar-grid {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                gap: 6px;
+                margin: 20px 0;
+                padding: 20px;
+                background: #f8f9fa;
+                border-radius: 12px;
+            }
+
+            .day-header {
+                font-size: 0.75em;
+                font-weight: bold;
+                color: #666;
+                padding: 6px 0;
+                text-align: center;
+            }
+
+            .day-cell {
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 0.85em;
+                font-weight: 500;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                position: relative;
+                margin: 0 auto;
+            }
+
+            .day-cell.completed {
+                background: #58cc02;
+                color: white;
+                box-shadow: 0 2px 8px rgba(88, 204, 2, 0.3);
+            }
+
+            .day-cell.missed {
+                background: #e5e5e5;
+                color: #999;
+            }
+
+            .day-cell.today {
+                border: 2px solid #ff9600;
+                background: #fff3e0;
+                color: #ff9600;
+            }
+
+            .day-cell.other-month {
+                opacity: 0.3;
+            }
+
+            .day-cell.milestone::after {
+                content: "🔥";
+                position: absolute;
+                top: -6px;
+                right: -6px;
+                font-size: 0.6em;
+            }
+
+            .streak-stats {
+                display: flex;
+                justify-content: space-around;
+                margin: 20px 0;
+                padding: 20px;
+                background: #f0f8ff;
+                border-radius: 12px;
+            }
+
+            .stat-item {
+                text-align: center;
+            }
+
+            .stat-number {
+                font-size: 1.5em;
+                font-weight: bold;
+                color: #1cb0f6;
+            }
+
+            .stat-label {
+                font-size: 0.9em;
+                color: #666;
+                margin-top: 4px;
+            }
+
+            .freeze-counter {
+                display: inline-flex;
+                align-items: center;
+                background: #e3f2fd;
+                padding: 8px 16px;
+                border-radius: 20px;
+                margin: 10px;
+                font-size: 0.9em;
+                color: #1976d2;
+            }
+
+            .action-buttons {
+                display: flex;
+                gap: 12px;
+                margin-top: 20px;
+                flex-wrap: wrap;
+            }
+
+            .btn {
+                flex: 1;
+                padding: 12px 16px;
+                border: none;
+                border-radius: 12px;
+                font-size: 0.9em;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                min-width: 80px;
+            }
+
+            .btn-primary {
+                background: #58cc02;
+                color: white;
+            }
+
+            .btn-primary:hover {
+                background: #46a302;
+                transform: translateY(-1px);
+            }
+
+            .btn-secondary {
+                background: #e5e5e5;
+                color: #666;
+            }
+
+            .btn-secondary:hover {
+                background: #d5d5d5;
+            }
+
+            .milestone-popup {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) scale(0);
+                background: white;
+                padding: 40px;
+                border-radius: 20px;
+                text-align: center;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                z-index: 1000;
+                transition: transform 0.3s ease;
+            }
+
+            .milestone-popup.show {
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            .milestone-popup h2 {
+                color: #ff9600;
+                margin-bottom: 10px;
+                font-size: 2em;
+            }
+
+            .milestone-popup .celebration {
+                font-size: 4em;
+                margin: 20px 0;
+                animation: bounce 0.6s ease infinite alternate;
+            }
+
+            @keyframes bounce {
+                to {
+                    transform: translateY(-10px);
+                }
+            }
+
+            .overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s ease;
+            }
+
+            .overlay.show {
+                opacity: 1;
+                visibility: visible;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="streak-container">
+            <div class="streak-flame">🔥</div>
+            <div class="streak-number" id="streakNumber">0</div>
+            <div class="streak-label">day streak</div>
+
+            <div class="freeze-counter">
+                ❄️ <span id="freezeCount">2</span> streak freezes
+            </div>
+
+            <!-- Calendar Navigation Header -->
+            <div class="calendar-header">
+                <button
+                    class="nav-button"
+                    onclick="streakTracker.previousMonth()"
+                >
+                    ‹
+                </button>
+                <div class="month-year-display">
+                    <div class="month-display" id="currentMonth">September</div>
+                    <div class="year-display" id="currentYear">2025</div>
+                </div>
+                <button class="nav-button" onclick="streakTracker.nextMonth()">
+                    ›
+                </button>
+            </div>
+
+            <!-- Year Navigation -->
+            <div class="year-nav">
+                <button
+                    class="year-nav-button"
+                    onclick="streakTracker.previousYear()"
+                >
+                    ‹
+                </button>
+                <span class="current-year" id="displayYear">2025</span>
+                <button
+                    class="year-nav-button"
+                    onclick="streakTracker.nextYear()"
+                >
+                    ›
+                </button>
+            </div>
+
+            <div class="calendar-grid" id="calendar">
+                <!-- Calendar will be generated by JavaScript -->
+            </div>
+
+            <div class="streak-stats">
+                <div class="stat-item">
+                    <div class="stat-number" id="totalDays">0</div>
+                    <div class="stat-label">Total days</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="longestStreak">0</div>
+                    <div class="stat-label">Longest streak</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="currentMonthStat">0</div>
+                    <div class="stat-label">This month</div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="completeToday()">
+                    Complete Today
+                </button>
+                <button class="btn btn-secondary" onclick="useFreeze()">
+                    Use Freeze
+                </button>
+                <button class="btn btn-secondary" onclick="resetStreak()">
+                    Reset
+                </button>
+                <button class="btn btn-secondary" onclick="exportStreakData()">
+                    Export
+                </button>
+                <input
+                    type="file"
+                    id="importFile"
+                    accept=".json"
+                    onchange="importStreakData(event)"
+                    style="display: none"
+                />
+                <button
+                    class="btn btn-secondary"
+                    onclick="document.getElementById('importFile').click()"
+                >
+                    Import
+                </button>
+            </div>
+        </div>
+
+        <!-- Milestone Popup -->
+        <div class="overlay" id="overlay" onclick="closeMilestone()"></div>
+        <div class="milestone-popup" id="milestonePopup">
+            <h2 id="milestoneTitle"></h2>
+            <div class="celebration" id="milestoneIcon"></div>
+            <p id="milestoneMessage"></p>
+            <button
+                class="btn btn-primary"
+                onclick="closeMilestone()"
+                style="margin-top: 20px"
+            >
+                Continue
+            </button>
+        </div>
+
+        <script>
+            class StreakTracker {
+                constructor() {
+                    this.streakData = JSON.parse(
+                        localStorage.getItem("streakData")
+                    ) || {
+                        // "Wed Aug 27 2025": true,
+                        // "Thu Aug 28 2025": true,
+                        // "Fri Aug 29 2025": true,
+                        // "Sat Aug 30 2025": true,
+                        "Sun Aug 31 2025": true,
+                        "Mon Sep 01 2025": true,
+                        "Tue Sep 02 2025": true,
+                        "Wed Sep 03 2025": true, // or omitted entirely for missed days
+                        "Thu Sep 04 2025": true,
+                        "Fri Sep 05 2025": true,
+                    };
+                    this.currentStreak = 0;
+                    this.longestStreak = 0;
+                    this.freezesAvailable =
+                        parseInt(localStorage.getItem("freezesAvailable")) || 2;
+
+                    // Current viewing date (for navigation)
+                    this.viewingDate = new Date();
+
+                    this.init();
+                }
+
+                init() {
+                    this.calculateStreaks();
+                    this.renderCalendar();
+                    this.updateDisplay();
+                }
+
+                calculateStreaks() {
+                    const today = new Date();
+                    let streak = 0;
+                    let longest = 0;
+                    let tempStreak = 0;
+
+                    // Calculate current streak (working backwards from today)
+                    for (let i = 0; i >= -365; i--) {
+                        const checkDate = new Date(today);
+                        checkDate.setDate(checkDate.getDate() + i);
+                        const dateStr = checkDate.toDateString();
+
+                        if (this.streakData[dateStr]) {
+                            if (i <= 0) streak = Math.abs(i) + 1;
+                            tempStreak++;
+                            longest = Math.max(longest, tempStreak);
+                        } else {
+                            if (i < 0) break;
+                            tempStreak = 0;
+                        }
+                    }
+
+                    this.currentStreak = streak;
+                    this.longestStreak = longest;
+                }
+
+                renderCalendar() {
+                    const calendar = document.getElementById("calendar");
+                    const today = new Date();
+
+                    // Use viewing date for calendar display
+                    const viewYear = this.viewingDate.getFullYear();
+                    const viewMonth = this.viewingDate.getMonth();
+
+                    const startOfMonth = new Date(viewYear, viewMonth, 1);
+                    const endOfMonth = new Date(viewYear, viewMonth + 1, 0);
+                    const startOfCalendar = new Date(startOfMonth);
+                    startOfCalendar.setDate(
+                        startOfCalendar.getDate() - startOfMonth.getDay()
+                    );
+
+                    calendar.innerHTML = "";
+
+                    // Add day headers
+                    const dayHeaders = [
+                        "Sun",
+                        "Mon",
+                        "Tue",
+                        "Wed",
+                        "Thu",
+                        "Fri",
+                        "Sat",
+                    ];
+                    dayHeaders.forEach((day) => {
+                        const header = document.createElement("div");
+                        header.className = "day-header";
+                        header.textContent = day;
+                        calendar.appendChild(header);
+                    });
+
+                    // Generate 42 days (6 weeks) to fill calendar grid
+                    for (let i = 0; i < 42; i++) {
+                        const cellDate = new Date(startOfCalendar);
+                        cellDate.setDate(cellDate.getDate() + i);
+                        const dateStr = cellDate.toDateString();
+                        const cell = document.createElement("div");
+
+                        cell.className = "day-cell";
+                        cell.textContent = cellDate.getDate();
+
+                        // Mark days outside current viewing month
+                        if (cellDate.getMonth() !== viewMonth) {
+                            cell.classList.add("other-month");
+                        }
+
+                        // Mark completed/missed days
+                        if (this.streakData[dateStr]) {
+                            cell.classList.add("completed");
+
+                            // Add milestone markers
+                            const streakAtDate =
+                                this.calculateStreakAtDate(cellDate);
+                            if (streakAtDate % 10 === 0 && streakAtDate > 0) {
+                                cell.classList.add("milestone");
+                            }
+                        } else if (
+                            cellDate < today &&
+                            cellDate.getMonth() === viewMonth
+                        ) {
+                            cell.classList.add("missed");
+                        }
+
+                        // Mark today
+                        if (cellDate.toDateString() === today.toDateString()) {
+                            cell.classList.add("today");
+                        }
+
+                        calendar.appendChild(cell);
+                    }
+
+                    // Update month/year display
+                    const monthNames = [
+                        "January",
+                        "February",
+                        "March",
+                        "April",
+                        "May",
+                        "June",
+                        "July",
+                        "August",
+                        "September",
+                        "October",
+                        "November",
+                        "December",
+                    ];
+                    document.getElementById("currentMonth").textContent =
+                        monthNames[viewMonth];
+                    document.getElementById("currentYear").textContent =
+                        viewYear;
+                    document.getElementById("displayYear").textContent =
+                        viewYear;
+                }
+
+                calculateStreakAtDate(targetDate) {
+                    let streak = 0;
+                    const checkDate = new Date(targetDate);
+
+                    // Count backwards from target date
+                    for (let i = 0; i >= -365; i--) {
+                        checkDate.setDate(targetDate.getDate() + i);
+                        const dateStr = checkDate.toDateString();
+
+                        if (this.streakData[dateStr]) {
+                            if (i <= 0) streak = Math.abs(i) + 1;
+                        } else {
+                            if (i < 0) break;
+                        }
+                    }
+                    return streak;
+                }
+
+                updateDisplay() {
+                    document.getElementById("streakNumber").textContent =
+                        this.currentStreak;
+                    document.getElementById("freezeCount").textContent =
+                        this.freezesAvailable;
+                    document.getElementById("totalDays").textContent =
+                        Object.keys(this.streakData).length;
+                    document.getElementById("longestStreak").textContent =
+                        this.longestStreak;
+
+                    // Calculate viewing month's count
+                    const viewYear = this.viewingDate.getFullYear();
+                    const viewMonth = this.viewingDate.getMonth();
+
+                    const monthCount = Object.keys(this.streakData).filter(
+                        (dateStr) => {
+                            const date = new Date(dateStr);
+                            return (
+                                date.getMonth() === viewMonth &&
+                                date.getFullYear() === viewYear
+                            );
+                        }
+                    ).length;
+
+                    document.getElementById("currentMonthStat").textContent =
+                        monthCount;
+                }
+
+                // Navigation methods
+                previousMonth() {
+                    this.viewingDate.setMonth(this.viewingDate.getMonth() - 1);
+                    this.renderCalendar();
+                    this.updateDisplay();
+                }
+
+                nextMonth() {
+                    this.viewingDate.setMonth(this.viewingDate.getMonth() + 1);
+                    this.renderCalendar();
+                    this.updateDisplay();
+                }
+
+                previousYear() {
+                    this.viewingDate.setFullYear(
+                        this.viewingDate.getFullYear() - 1
+                    );
+                    this.renderCalendar();
+                    this.updateDisplay();
+                }
+
+                nextYear() {
+                    this.viewingDate.setFullYear(
+                        this.viewingDate.getFullYear() + 1
+                    );
+                    this.renderCalendar();
+                    this.updateDisplay();
+                }
+
+                completeToday() {
+                    const today = new Date();
+                    const dateStr = today.toDateString();
+
+                    if (this.streakData[dateStr]) {
+                        alert("Already completed today!");
+                        return;
+                    }
+
+                    this.streakData[dateStr] = true;
+                    localStorage.setItem(
+                        "streakData",
+                        JSON.stringify(this.streakData)
+                    );
+
+                    this.calculateStreaks();
+                    this.renderCalendar();
+                    this.updateDisplay();
+
+                    // Check for milestones
+                    this.checkMilestone();
+                }
+
+                checkMilestone() {
+                    const milestones = {
+                        1: {
+                            title: "Great start!",
+                            icon: "🎉",
+                            message: "You've started your streak!",
+                        },
+                        7: {
+                            title: "1 Week Streak!",
+                            icon: "⭐",
+                            message: "You're building a habit!",
+                        },
+                        30: {
+                            title: "30 Day Streak!",
+                            icon: "🏆",
+                            message: "Incredible dedication!",
+                        },
+                        100: {
+                            title: "100 Day Streak!",
+                            icon: "👑",
+                            message: "You're a champion!",
+                        },
+                        365: {
+                            title: "1 Year Streak!",
+                            icon: "🎖️",
+                            message: "Legendary achievement!",
+                        },
+                    };
+
+                    if (milestones[this.currentStreak]) {
+                        this.showMilestone(milestones[this.currentStreak]);
+                    }
+                }
+
+                showMilestone(milestone) {
+                    document.getElementById("milestoneTitle").textContent =
+                        milestone.title;
+                    document.getElementById("milestoneIcon").textContent =
+                        milestone.icon;
+                    document.getElementById("milestoneMessage").textContent =
+                        milestone.message;
+                    document.getElementById("overlay").classList.add("show");
+                    document
+                        .getElementById("milestonePopup")
+                        .classList.add("show");
+                }
+
+                useFreeze() {
+                    if (this.freezesAvailable <= 0) {
+                        alert("No freezes available!");
+                        return;
+                    }
+
+                    const yesterday = new Date();
+                    yesterday.setDate(yesterday.getDate() - 1);
+                    const dateStr = yesterday.toDateString();
+
+                    if (this.streakData[dateStr]) {
+                        alert("Yesterday was already completed!");
+                        return;
+                    }
+
+                    this.streakData[dateStr] = true;
+                    this.freezesAvailable--;
+
+                    localStorage.setItem(
+                        "streakData",
+                        JSON.stringify(this.streakData)
+                    );
+                    localStorage.setItem(
+                        "freezesAvailable",
+                        this.freezesAvailable.toString()
+                    );
+
+                    this.calculateStreaks();
+                    this.renderCalendar();
+                    this.updateDisplay();
+
+                    alert("Streak freeze used! Your streak is protected.");
+                }
+
+                resetStreak() {
+                    if (
+                        confirm("Are you sure you want to reset your streak?")
+                    ) {
+                        this.streakData = {};
+                        this.freezesAvailable = 2;
+                        localStorage.removeItem("streakData");
+                        localStorage.removeItem("freezesAvailable");
+                        this.init();
+                    }
+                }
+            }
+
+            // Import/Export functions
+            function exportStreakData() {
+                const data = {
+                    streakData: JSON.parse(
+                        localStorage.getItem("streakData") || "{}"
+                    ),
+                    freezesAvailable: parseInt(
+                        localStorage.getItem("freezesAvailable") || "2"
+                    ),
+                };
+
+                const blob = new Blob([JSON.stringify(data, null, 2)], {
+                    type: "application/json",
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "streak-data.json";
+                a.click();
+            }
+
+            function importStreakData(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        localStorage.setItem(
+                            "streakData",
+                            JSON.stringify(data.streakData)
+                        );
+                        localStorage.setItem(
+                            "freezesAvailable",
+                            data.freezesAvailable.toString()
+                        );
+                        streakTracker.init();
+                        alert("Data imported successfully!");
+                    } catch (error) {
+                        alert("Invalid file format");
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            function closeMilestone() {
+                document.getElementById("overlay").classList.remove("show");
+                document
+                    .getElementById("milestonePopup")
+                    .classList.remove("show");
+            }
+
+            // Initialize the streak tracker
+            const streakTracker = new StreakTracker();
+
+            // Expose functions to global scope
+            function completeToday() {
+                streakTracker.completeToday();
+            }
+
+            function useFreeze() {
+                streakTracker.useFreeze();
+            }
+
+            function resetStreak() {
+                streakTracker.resetStreak();
+            }
+        </script>
+    </body>
+</html>

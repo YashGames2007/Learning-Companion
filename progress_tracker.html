@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>YouTube Playlist Progress Tracker</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                    Roboto, sans-serif;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                min-height: 100vh;
+                padding: 20px;
+            }
+
+            .container {
+                max-width: 1200px;
+                margin: 0 auto;
+                background: white;
+                border-radius: 16px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+                overflow: hidden;
+            }
+
+            .header {
+                background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+                color: white;
+                padding: 40px;
+                text-align: center;
+            }
+
+            .header h1 {
+                font-size: 2.5rem;
+                margin-bottom: 10px;
+                font-weight: 700;
+            }
+
+            .header p {
+                font-size: 1.1rem;
+                opacity: 0.9;
+            }
+
+            .input-section {
+                padding: 40px;
+                background: #f8f9fa;
+            }
+
+            .input-group {
+                display: flex;
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+
+            .playlist-input {
+                flex: 1;
+                padding: 16px 20px;
+                border: 2px solid #e9ecef;
+                border-radius: 12px;
+                font-size: 1rem;
+                transition: all 0.3s ease;
+                background: white;
+            }
+
+            .playlist-input:focus {
+                outline: none;
+                border-color: #667eea;
+                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            }
+
+            .load-btn {
+                padding: 16px 32px;
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                color: white;
+                border: none;
+                border-radius: 12px;
+                font-size: 1rem;
+                font-weight: 600;
+                cursor: pointer;
+                transition: transform 0.2s;
+            }
+
+            .load-btn:hover {
+                transform: translateY(-2px);
+            }
+
+            .load-btn:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+                transform: none;
+            }
+
+            .api-key-input {
+                width: 100%;
+                padding: 12px 20px;
+                border: 2px solid #e9ecef;
+                border-radius: 8px;
+                font-size: 0.9rem;
+                background: white;
+                margin-bottom: 10px;
+            }
+
+            .api-help {
+                font-size: 0.85rem;
+                color: #666;
+                margin-bottom: 20px;
+            }
+
+            .api-help a {
+                color: #667eea;
+                text-decoration: none;
+            }
+
+            .progress-section {
+                padding: 40px;
+                display: none;
+            }
+
+            .playlist-info {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                margin-bottom: 30px;
+                padding: 25px;
+                background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                border-radius: 16px;
+                color: white;
+            }
+
+            .playlist-thumbnail {
+                width: 120px;
+                height: 90px;
+                border-radius: 12px;
+                object-fit: cover;
+            }
+
+            .playlist-details h2 {
+                font-size: 1.5rem;
+                margin-bottom: 8px;
+            }
+
+            .playlist-stats {
+                display: flex;
+                gap: 20px;
+                font-size: 0.9rem;
+                opacity: 0.9;
+            }
+
+            .main-progress {
+                margin-bottom: 30px;
+            }
+
+            .progress-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+            }
+
+            .progress-title {
+                font-size: 1.3rem;
+                font-weight: 600;
+                color: #333;
+            }
+
+            .progress-stats {
+                display: flex;
+                gap: 15px;
+                font-size: 0.9rem;
+                color: #666;
+            }
+
+            .progress-bar-container {
+                background: #e9ecef;
+                border-radius: 12px;
+                height: 20px;
+                overflow: hidden;
+                position: relative;
+            }
+
+            .progress-bar {
+                height: 100%;
+                background: linear-gradient(90deg, #00b894, #00cec9);
+                border-radius: 12px;
+                transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+                position: relative;
+                overflow: hidden;
+            }
+
+            .progress-bar::before {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(
+                    90deg,
+                    transparent,
+                    rgba(255, 255, 255, 0.3),
+                    transparent
+                );
+                animation: shimmer 2s infinite;
+            }
+
+            @keyframes shimmer {
+                0% {
+                    left: -100%;
+                }
+                100% {
+                    left: 100%;
+                }
+            }
+
+            .progress-percentage {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 0.8rem;
+                font-weight: 600;
+                color: #333;
+                text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+            }
+
+            .videos-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+                gap: 20px;
+                margin-top: 30px;
+            }
+
+            .video-card {
+                background: white;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+                transition: all 0.3s ease;
+                cursor: pointer;
+                border: 2px solid transparent;
+            }
+
+            .video-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+            }
+
+            .video-card.watched {
+                border-color: #00b894;
+            }
+
+            .video-card.watched .video-overlay {
+                background: rgba(0, 184, 148, 0.9);
+            }
+
+            .video-thumbnail-container {
+                position: relative;
+                width: 100%;
+                height: 180px;
+                overflow: hidden;
+            }
+
+            .video-thumbnail {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+
+            .video-overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            }
+
+            .video-card:hover .video-overlay,
+            .video-card.watched .video-overlay {
+                opacity: 1;
+            }
+
+            .play-icon {
+                width: 60px;
+                height: 60px;
+                background: rgba(255, 255, 255, 0.9);
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 24px;
+                color: #333;
+            }
+
+            .video-card.watched .play-icon {
+                background: white;
+                color: #00b894;
+            }
+
+            .video-info {
+                padding: 20px;
+            }
+
+            .video-title {
+                font-size: 1rem;
+                font-weight: 600;
+                color: #333;
+                margin-bottom: 8px;
+                line-height: 1.4;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+
+            .video-meta {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 0.85rem;
+                color: #666;
+            }
+
+            .watch-status {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+                font-weight: 600;
+            }
+
+            .watched .watch-status {
+                color: #00b894;
+            }
+
+            .loading {
+                text-align: center;
+                padding: 40px;
+                color: #666;
+            }
+
+            .spinner {
+                width: 40px;
+                height: 40px;
+                border: 4px solid #f3f3f3;
+                border-top: 4px solid #667eea;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 20px;
+            }
+
+            @keyframes spin {
+                0% {
+                    transform: rotate(0deg);
+                }
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
+
+            .error {
+                background: #ff6b6b;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                margin: 20px 0;
+                text-align: center;
+            }
+
+            .filters {
+                display: flex;
+                gap: 10px;
+                margin-bottom: 20px;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            .filter-btn {
+                padding: 8px 16px;
+                border: 2px solid #e9ecef;
+                background: white;
+                border-radius: 25px;
+                font-size: 0.9rem;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .filter-btn.active {
+                background: #667eea;
+                color: white;
+                border-color: #667eea;
+            }
+
+            .export-section {
+                text-align: center;
+                margin-top: 30px;
+                padding-top: 30px;
+                border-top: 1px solid #e9ecef;
+            }
+
+            .export-btn {
+                background: #74b9ff;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 8px;
+                cursor: pointer;
+                margin: 0 10px;
+                font-size: 0.9rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🎬 YouTube Playlist Progress Tracker</h1>
+                <p>Track your viewing progress across any YouTube playlist</p>
+            </div>
+
+            <div class="input-section">
+                <div class="api-key-input-group">
+                    <input
+                        type="password"
+                        id="apiKey"
+                        class="api-key-input"
+                        placeholder="Enter your YouTube Data API v3 key"
+                    />
+                    <div class="api-help">
+                        Need an API key? Get one free at
+                        <a
+                            href="https://console.developers.google.com/"
+                            target="_blank"
+                            >Google Cloud Console</a
+                        >
+                        - Enable YouTube Data API v3
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <input
+                        type="text"
+                        id="playlistUrl"
+                        class="playlist-input"
+                        placeholder="Enter YouTube playlist URL (e.g., https://www.youtube.com/playlist?list=PLxxxxxx)"
+                    />
+                    <button id="loadPlaylist" class="load-btn">
+                        Load Playlist
+                    </button>
+                </div>
+            </div>
+
+            <div id="progressSection" class="progress-section">
+                <div id="playlistInfo" class="playlist-info"></div>
+
+                <div class="main-progress">
+                    <div class="progress-header">
+                        <div class="progress-title">Progress Overview</div>
+                        <div class="progress-stats">
+                            <span id="watchedCount">0</span> of
+                            <span id="totalCount">0</span> videos watched
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div
+                            id="progressBar"
+                            class="progress-bar"
+                            style="width: 0%"
+                        ></div>
+                        <div
+                            id="progressPercentage"
+                            class="progress-percentage"
+                        >
+                            0%
+                        </div>
+                    </div>
+                </div>
+
+                <div class="filters">
+                    <button class="filter-btn active" data-filter="all">
+                        All Videos
+                    </button>
+                    <button class="filter-btn" data-filter="watched">
+                        Watched
+                    </button>
+                    <button class="filter-btn" data-filter="unwatched">
+                        Not Watched
+                    </button>
+                </div>
+
+                <div id="videosGrid" class="videos-grid"></div>
+
+                <div class="export-section">
+                    <button
+                        class="export-btn"
+                        onclick="tracker.exportProgress()"
+                    >
+                        Export Progress
+                    </button>
+                    <input
+                        type="file"
+                        id="importFile"
+                        accept=".json"
+                        style="display: none"
+                        onchange="tracker.importProgress(event)"
+                    />
+                    <button
+                        class="export-btn"
+                        onclick="document.getElementById('importFile').click()"
+                    >
+                        Import Progress
+                    </button>
+                    <button
+                        class="export-btn"
+                        onclick="tracker.clearProgress()"
+                    >
+                        Clear All Progress
+                    </button>
+                </div>
+            </div>
+
+            <div id="loading" class="loading" style="display: none">
+                <div class="spinner"></div>
+                <p>Loading playlist...</p>
+            </div>
+        </div>
+
+        <script>
+            class YouTubePlaylistTracker {
+                constructor() {
+                    this.apiKey = "";
+                    this.playlistId = "";
+                    this.videos = [];
+                    this.watchedVideos =
+                        JSON.parse(localStorage.getItem("watchedVideos")) || {};
+                    this.currentFilter = "all";
+                    this.init();
+                }
+
+                init() {
+                    this.bindEvents();
+                }
+
+                bindEvents() {
+                    document
+                        .getElementById("loadPlaylist")
+                        .addEventListener("click", () => this.loadPlaylist());
+                    document
+                        .getElementById("apiKey")
+                        .addEventListener("input", (e) => {
+                            this.apiKey = e.target.value.trim();
+                        });
+
+                    // Filter buttons
+                    document.querySelectorAll(".filter-btn").forEach((btn) => {
+                        btn.addEventListener("click", (e) => {
+                            document
+                                .querySelectorAll(".filter-btn")
+                                .forEach((b) => b.classList.remove("active"));
+                            e.target.classList.add("active");
+                            this.currentFilter = e.target.dataset.filter;
+                            this.renderVideos();
+                        });
+                    });
+
+                    // Enter key support
+                    document
+                        .getElementById("playlistUrl")
+                        .addEventListener("keypress", (e) => {
+                            if (e.key === "Enter") this.loadPlaylist();
+                        });
+                }
+
+                extractPlaylistId(url) {
+                    const regex = /[?&]list=([a-zA-Z0-9_-]+)/;
+                    const match = url.match(regex);
+                    return match ? match[1] : null;
+                }
+
+                async loadPlaylist() {
+                    const url = document
+                        .getElementById("playlistUrl")
+                        .value.trim();
+
+                    if (!this.apiKey) {
+                        this.showError("Please enter your YouTube API key");
+                        return;
+                    }
+
+                    if (!url) {
+                        this.showError("Please enter a playlist URL");
+                        return;
+                    }
+
+                    this.playlistId = this.extractPlaylistId(url);
+                    if (!this.playlistId) {
+                        this.showError("Invalid playlist URL");
+                        return;
+                    }
+
+                    this.showLoading(true);
+
+                    try {
+                        await this.fetchPlaylistData();
+                        await this.fetchAllVideos();
+                        this.showProgressSection();
+                        this.renderPlaylistInfo();
+                        this.updateProgress();
+                        this.renderVideos();
+                    } catch (error) {
+                        this.showError(error.message);
+                    } finally {
+                        this.showLoading(false);
+                    }
+                }
+
+                async fetchPlaylistData() {
+                    const response = await fetch(
+                        `https://www.googleapis.com/youtube/v3/playlists?part=snippet,contentDetails&id=${this.playlistId}&key=${this.apiKey}`
+                    );
+
+                    if (!response.ok) {
+                        throw new Error(
+                            "Failed to fetch playlist data. Check your API key and playlist URL."
+                        );
+                    }
+
+                    const data = await response.json();
+                    if (!data.items || data.items.length === 0) {
+                        throw new Error("Playlist not found or is private");
+                    }
+
+                    this.playlistData = data.items[0];
+                }
+
+                async fetchAllVideos() {
+                    let videos = [];
+                    let nextPageToken = "";
+
+                    do {
+                        const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${
+                            this.playlistId
+                        }&key=${this.apiKey}${
+                            nextPageToken ? `&pageToken=${nextPageToken}` : ""
+                        }`;
+
+                        const response = await fetch(url);
+                        if (!response.ok) {
+                            throw new Error("Failed to fetch videos");
+                        }
+
+                        const data = await response.json();
+                        videos.push(...data.items);
+                        nextPageToken = data.nextPageToken || "";
+                    } while (nextPageToken);
+
+                    this.videos = videos.filter(
+                        (video) =>
+                            video.snippet.title !== "Deleted video" &&
+                            video.snippet.title !== "Private video"
+                    );
+                }
+
+                toggleVideoWatched(videoId) {
+                    if (this.watchedVideos[videoId]) {
+                        delete this.watchedVideos[videoId];
+                    } else {
+                        this.watchedVideos[videoId] = {
+                            watchedAt: new Date().toISOString(),
+                            title: this.videos.find(
+                                (v) => v.snippet.resourceId.videoId === videoId
+                            )?.snippet.title,
+                        };
+                    }
+
+                    this.saveProgress();
+                    this.updateProgress();
+                    this.renderVideos();
+                }
+
+                updateProgress() {
+                    const totalVideos = this.videos.length;
+                    const watchedCount = Object.keys(this.watchedVideos).length;
+                    const percentage =
+                        totalVideos > 0
+                            ? Math.round((watchedCount / totalVideos) * 100)
+                            : 0;
+
+                    document.getElementById("watchedCount").textContent =
+                        watchedCount;
+                    document.getElementById("totalCount").textContent =
+                        totalVideos;
+                    document.getElementById(
+                        "progressBar"
+                    ).style.width = `${percentage}%`;
+                    document.getElementById(
+                        "progressPercentage"
+                    ).textContent = `${percentage}%`;
+                }
+
+                renderPlaylistInfo() {
+                    const info = document.getElementById("playlistInfo");
+                    const thumbnail =
+                        this.playlistData.snippet.thumbnails.medium?.url ||
+                        this.playlistData.snippet.thumbnails.default?.url;
+
+                    info.innerHTML = `
+                    <img src="${thumbnail}" alt="Playlist thumbnail" class="playlist-thumbnail">
+                    <div class="playlist-details">
+                        <h2>${this.playlistData.snippet.title}</h2>
+                        <div class="playlist-stats">
+                            <span>📹 ${this.videos.length} videos</span>
+                            <span>👤 ${
+                                this.playlistData.snippet.channelTitle
+                            }</span>
+                            <span>🗓 ${new Date(
+                                this.playlistData.snippet.publishedAt
+                            ).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                `;
+                }
+
+                renderVideos() {
+                    const grid = document.getElementById("videosGrid");
+                    let filteredVideos = this.videos;
+
+                    // Apply filters
+                    if (this.currentFilter === "watched") {
+                        filteredVideos = this.videos.filter(
+                            (video) =>
+                                this.watchedVideos[
+                                    video.snippet.resourceId.videoId
+                                ]
+                        );
+                    } else if (this.currentFilter === "unwatched") {
+                        filteredVideos = this.videos.filter(
+                            (video) =>
+                                !this.watchedVideos[
+                                    video.snippet.resourceId.videoId
+                                ]
+                        );
+                    }
+
+                    grid.innerHTML = filteredVideos
+                        .map((video, index) => {
+                            const videoId = video.snippet.resourceId.videoId;
+                            const isWatched = this.watchedVideos[videoId];
+                            const thumbnail =
+                                video.snippet.thumbnails.medium?.url ||
+                                video.snippet.thumbnails.default?.url;
+
+                            return `
+                        <div class="video-card ${isWatched ? "watched" : ""}" 
+                             onclick="tracker.toggleVideoWatched('${videoId}')">
+                            <div class="video-thumbnail-container">
+                                <img src="${thumbnail}" alt="${
+                                video.snippet.title
+                            }" class="video-thumbnail">
+                                <div class="video-overlay">
+                                    <div class="play-icon">
+                                        ${isWatched ? "✓" : "▶"}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="video-info">
+                                <h3 class="video-title">${
+                                    video.snippet.title
+                                }</h3>
+                                <div class="video-meta">
+                                    <span>#${index + 1}</span>
+                                    <div class="watch-status">
+                                        ${
+                                            isWatched
+                                                ? "Watched ✓"
+                                                : "Not watched"
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                        })
+                        .join("");
+                }
+
+                saveProgress() {
+                    localStorage.setItem(
+                        "watchedVideos",
+                        JSON.stringify(this.watchedVideos)
+                    );
+                }
+
+                exportProgress() {
+                    const data = {
+                        playlistId: this.playlistId,
+                        playlistTitle: this.playlistData?.snippet.title,
+                        exportDate: new Date().toISOString(),
+                        watchedVideos: this.watchedVideos,
+                        totalVideos: this.videos.length,
+                    };
+
+                    const blob = new Blob([JSON.stringify(data, null, 2)], {
+                        type: "application/json",
+                    });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `playlist-progress-${this.playlistId}.json`;
+                    a.click();
+                }
+
+                importProgress(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            this.watchedVideos = {
+                                ...this.watchedVideos,
+                                ...data.watchedVideos,
+                            };
+                            this.saveProgress();
+                            this.updateProgress();
+                            this.renderVideos();
+                            alert("Progress imported successfully!");
+                        } catch (error) {
+                            alert("Invalid file format");
+                        }
+                    };
+                    reader.readAsText(file);
+                }
+
+                clearProgress() {
+                    if (confirm("Clear all progress for this playlist?")) {
+                        // Only clear progress for current playlist
+                        Object.keys(this.watchedVideos).forEach((videoId) => {
+                            if (
+                                this.videos.some(
+                                    (v) =>
+                                        v.snippet.resourceId.videoId === videoId
+                                )
+                            ) {
+                                delete this.watchedVideos[videoId];
+                            }
+                        });
+                        this.saveProgress();
+                        this.updateProgress();
+                        this.renderVideos();
+                    }
+                }
+
+                showLoading(show) {
+                    document.getElementById("loading").style.display = show
+                        ? "block"
+                        : "none";
+                }
+
+                showProgressSection() {
+                    document.getElementById("progressSection").style.display =
+                        "block";
+                }
+
+                showError(message) {
+                    // Remove existing error
+                    const existingError = document.querySelector(".error");
+                    if (existingError) existingError.remove();
+
+                    // Add new error
+                    const errorDiv = document.createElement("div");
+                    errorDiv.className = "error";
+                    errorDiv.textContent = message;
+                    document
+                        .querySelector(".input-section")
+                        .appendChild(errorDiv);
+
+                    // Auto remove after 5 seconds
+                    setTimeout(() => errorDiv.remove(), 5000);
+                }
+            }
+
+            // Initialize tracker
+            const tracker = new YouTubePlaylistTracker();
+        </script>
+    </body>
+</html>

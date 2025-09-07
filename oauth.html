@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1" />
+        <title>Supabase — Google Login + Profiles</title>
+        <style>
+            body {
+                font-family: Inter, ui-sans-serif;
+                min-height: 100vh;
+                display: grid;
+                place-items: center;
+                margin: 0;
+                background: linear-gradient(180deg, #071023 0%, #081223 100%);
+                color: #e6eef6;
+            }
+            .card {
+                width: 100%;
+                max-width: 600px;
+                background: rgba(255, 255, 255, 0.03);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                padding: 28px;
+                border-radius: 14px;
+                box-shadow: 0 10px 30px rgba(2, 6, 23, 0.7);
+            }
+            h1 {
+                font-size: 20px;
+                margin: 0 0 6px;
+            }
+            .btn {
+                display: inline-flex;
+                align-items: center;
+                padding: 10px 14px;
+                border-radius: 10px;
+                border: 0;
+                cursor: pointer;
+                background: rgba(255, 255, 255, 0.05);
+                color: #6ee7b7;
+                font-weight: 600;
+                margin-top: 6px;
+            }
+            .btn.secondary {
+                background: transparent;
+                color: #9aa4b2;
+                border: 1px solid rgba(255, 255, 255, 0.05);
+            }
+            .hidden {
+                display: none;
+            }
+            .profile {
+                margin-top: 20px;
+                padding: 16px;
+                border-radius: 10px;
+                background: rgba(255, 255, 255, 0.02);
+            }
+            .profile img {
+                width: 80px;
+                height: 80px;
+                border-radius: 50%;
+                object-fit: cover;
+                margin-bottom: 10px;
+            }
+            .profile input[type="text"] {
+                width: 100%;
+                margin: 6px 0;
+                padding: 8px;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                background: transparent;
+                color: inherit;
+            }
+            .hint {
+                font-size: 13px;
+                color: #9aa4b2;
+                margin-top: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <main class="card">
+            <h1>Supabase — Google Login + Profiles</h1>
+            <p>
+                Login with Google, sync profile to Supabase, and edit your
+                details.
+            </p>
+
+            <div id="controls">
+                <button id="btnLogin" class="btn">➤ Sign in with Google</button>
+                <button id="btnLogout" class="btn secondary hidden">
+                    Logout
+                </button>
+            </div>
+
+            <div class="hint">
+                Status: <span id="statusText">Not initialized</span>
+            </div>
+
+            <!-- Profile Section -->
+            <section id="profileSection" class="profile hidden">
+                <img id="profileAvatar" src="" alt="Profile Avatar" />
+                <div><strong id="profileName"></strong></div>
+                <div id="profileEmail" style="color: #9aa4b2"></div>
+                <div
+                    id="profileJoined"
+                    style="font-size: 13px; color: #9aa4b2; margin-top: 4px"
+                ></div>
+
+                <h3 style="margin-top: 14px; font-size: 16px">Edit Profile</h3>
+                <input type="text" id="editName" placeholder="Enter name" />
+                <input type="file" id="uploadAvatar" accept="image/*" />
+                <button id="btnSave" class="btn secondary">Save</button>
+            </section>
+
+            <!-- <footer>
+                <div class="hint">Redirect URL must match exactly:</div>
+                <pre id="redirectUrl"></pre>
+            </footer> -->
+        </main>
+
+        <script type="module">
+            import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+            let supabase;
+
+            const btnLogin = document.getElementById("btnLogin");
+            const btnLogout = document.getElementById("btnLogout");
+            const btnSave = document.getElementById("btnSave");
+            const statusText = document.getElementById("statusText");
+            const profileSection = document.getElementById("profileSection");
+            const profileName = document.getElementById("profileName");
+            const profileEmail = document.getElementById("profileEmail");
+            const profileAvatar = document.getElementById("profileAvatar");
+            const profileJoined = document.getElementById("profileJoined");
+            const editName = document.getElementById("editName");
+            const uploadAvatar = document.getElementById("uploadAvatar");
+            const redirectTo =
+                window.location.origin + window.location.pathname;
+            document.getElementById("redirectUrl").textContent = redirectTo;
+
+            function updateStatus(t) {
+                statusText.textContent = t;
+            }
+
+            function showSignedOut() {
+                btnLogin.classList.remove("hidden");
+                btnLogout.classList.add("hidden");
+                profileSection.classList.add("hidden");
+                updateStatus("Signed out");
+            }
+
+            function relativeTime(dateString) {
+                const now = new Date();
+                const past = new Date(dateString);
+                const diffMs = now - past;
+                const sec = Math.floor(diffMs / 1000);
+                const min = Math.floor(sec / 60);
+                const hr = Math.floor(min / 60);
+                const day = Math.floor(hr / 24);
+                const mon = Math.floor(day / 30);
+                const yr = Math.floor(day / 365);
+
+                if (yr > 0) return yr + (yr === 1 ? " year ago" : " years ago");
+                if (mon > 0)
+                    return mon + (mon === 1 ? " month ago" : " months ago");
+                if (day > 0)
+                    return day + (day === 1 ? " day ago" : " days ago");
+                if (hr > 0) return hr + (hr === 1 ? " hour ago" : " hours ago");
+                if (min > 0)
+                    return min + (min === 1 ? " minute ago" : " minutes ago");
+                return "just now";
+            }
+
+            async function showProfile(email) {
+                const { data, error } = await supabase
+                    .from("profiles")
+                    .select("*")
+                    .eq("email", email)
+                    .single();
+
+                if (error) {
+                    console.error(error);
+                    return;
+                }
+
+                profileName.textContent = data.name || "Unnamed";
+                profileEmail.textContent = data.email;
+                profileAvatar.src =
+                    data.avatar_url || "https://ui-avatars.com/api/?name=User";
+                profileJoined.textContent =
+                    "Joined " + relativeTime(data.joined_at);
+
+                btnLogin.classList.add("hidden");
+                btnLogout.classList.remove("hidden");
+                profileSection.classList.remove("hidden");
+
+                editName.value = data.name || "";
+            }
+
+            async function ensureProfile(user) {
+                const { email, user_metadata } = user;
+                const defaultName =
+                    user_metadata?.full_name || user_metadata?.name || "";
+                const defaultAvatar = user_metadata?.picture || "";
+
+                await supabase.from("profiles").upsert(
+                    {
+                        email: email,
+                        name: defaultName,
+                        avatar_url: defaultAvatar,
+                        joined_at: new Date().toISOString(),
+                    },
+                    { onConflict: "email" }
+                );
+            }
+
+            async function initSupabase() {
+                const res = await fetch("keys.json");
+                const keys = await res.json();
+                supabase = createClient(keys.url, keys.anonKey);
+
+                btnLogin.addEventListener("click", async () => {
+                    updateStatus("Redirecting...");
+                    await supabase.auth.signInWithOAuth({
+                        provider: "google",
+                        options: { redirectTo },
+                    });
+                });
+
+                btnLogout.addEventListener("click", async () => {
+                    await supabase.auth.signOut();
+                    showSignedOut();
+                });
+
+                btnSave.addEventListener("click", async () => {
+                    const { data } = await supabase.auth.getUser();
+                    if (!data.user) return;
+
+                    let avatarUrl = null;
+                    if (uploadAvatar.files.length > 0) {
+                        const file = uploadAvatar.files[0];
+                        const filePath = `${data.user.id}/${Date.now()}-${
+                            file.name
+                        }`;
+                        const { error: uploadError } = await supabase.storage
+                            .from("avatars")
+                            .upload(filePath, file, { upsert: true });
+                        if (!uploadError) {
+                            const { data: publicUrl } = supabase.storage
+                                .from("avatars")
+                                .getPublicUrl(filePath);
+                            avatarUrl = publicUrl.publicUrl;
+                        } else {
+                            console.error(uploadError);
+                        }
+                    }
+
+                    const updates = { name: editName.value };
+                    if (avatarUrl) updates.avatar_url = avatarUrl;
+
+                    const { error } = await supabase
+                        .from("profiles")
+                        .update(updates)
+                        .eq("email", data.user.email);
+                    if (error) alert("Update failed: " + error.message);
+                    else showProfile(data.user.email);
+                });
+
+                const { data } = await supabase.auth.getSession();
+                if (data.session?.user) {
+                    await ensureProfile(data.session.user);
+                    await showProfile(data.session.user.email);
+                } else {
+                    showSignedOut();
+                }
+
+                supabase.auth.onAuthStateChange(async (event, session) => {
+                    if (session?.user) {
+                        await ensureProfile(session.user);
+                        await showProfile(session.user.email);
+                    } else {
+                        showSignedOut();
+                    }
+                });
+            }
+
+            initSupabase();
+        </script>
+    </body>
+</html>
