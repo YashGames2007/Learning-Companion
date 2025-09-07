@@ -95,7 +95,6 @@
                 Status: <span id="statusText">Not initialized</span>
             </div>
 
-            <!-- Profile Section -->
             <section id="profileSection" class="profile hidden">
                 <img id="profileAvatar" src="" alt="Profile Avatar" />
                 <div><strong id="profileName"></strong></div>
@@ -110,11 +109,6 @@
                 <input type="file" id="uploadAvatar" accept="image/*" />
                 <button id="btnSave" class="btn secondary">Save</button>
             </section>
-
-            <!-- <footer>
-                <div class="hint">Redirect URL must match exactly:</div>
-                <pre id="redirectUrl"></pre>
-            </footer> -->
         </main>
 
         <script type="module">
@@ -133,14 +127,10 @@
             const profileJoined = document.getElementById("profileJoined");
             const editName = document.getElementById("editName");
             const uploadAvatar = document.getElementById("uploadAvatar");
-            const redirectTo =
-                window.location.origin + window.location.pathname;
-            document.getElementById("redirectUrl").textContent = redirectTo;
 
             function updateStatus(t) {
                 statusText.textContent = t;
             }
-
             function showSignedOut() {
                 btnLogin.classList.remove("hidden");
                 btnLogout.classList.add("hidden");
@@ -149,8 +139,8 @@
             }
 
             function relativeTime(dateString) {
-                const now = new Date();
-                const past = new Date(dateString);
+                const now = new Date(),
+                    past = new Date(dateString);
                 const diffMs = now - past;
                 const sec = Math.floor(diffMs / 1000);
                 const min = Math.floor(sec / 60);
@@ -158,7 +148,6 @@
                 const day = Math.floor(hr / 24);
                 const mon = Math.floor(day / 30);
                 const yr = Math.floor(day / 365);
-
                 if (yr > 0) return yr + (yr === 1 ? " year ago" : " years ago");
                 if (mon > 0)
                     return mon + (mon === 1 ? " month ago" : " months ago");
@@ -176,24 +165,22 @@
                     .select("*")
                     .eq("email", email)
                     .single();
-
                 if (error) {
                     console.error(error);
                     return;
                 }
-
                 profileName.textContent = data.name || "Unnamed";
                 profileEmail.textContent = data.email;
                 profileAvatar.src =
                     data.avatar_url || "https://ui-avatars.com/api/?name=User";
                 profileJoined.textContent =
                     "Joined " + relativeTime(data.joined_at);
-
+                console.log(data.joined_at);
                 btnLogin.classList.add("hidden");
                 btnLogout.classList.remove("hidden");
                 profileSection.classList.remove("hidden");
-
                 editName.value = data.name || "";
+                updateStatus("Signed in");
             }
 
             async function ensureProfile(user) {
@@ -202,12 +189,31 @@
                     user_metadata?.full_name || user_metadata?.name || "";
                 const defaultAvatar = user_metadata?.picture || "";
 
+                // Check if profile already exists
+                const { data: existing, error: fetchError } = await supabase
+                    .from("profiles")
+                    .select("joined_at")
+                    .eq("email", email)
+                    .single();
+
+                if (fetchError && fetchError.code !== "PGRST116") {
+                    // ignore "no rows found" error
+                    console.error(
+                        "Error checking existing profile:",
+                        fetchError
+                    );
+                    return;
+                }
+
+                const joinedAt =
+                    existing?.joined_at || new Date().toISOString();
+
                 await supabase.from("profiles").upsert(
                     {
                         email: email,
                         name: defaultName,
                         avatar_url: defaultAvatar,
-                        joined_at: new Date().toISOString(),
+                        joined_at: joinedAt,
                     },
                     { onConflict: "email" }
                 );
@@ -218,12 +224,16 @@
                 const keys = await res.json();
                 supabase = createClient(keys.url, keys.anonKey);
 
+                const redirectTo =
+                    window.location.origin + window.location.pathname;
+
                 btnLogin.addEventListener("click", async () => {
                     updateStatus("Redirecting...");
-                    await supabase.auth.signInWithOAuth({
+                    const { error } = await supabase.auth.signInWithOAuth({
                         provider: "google",
                         options: { redirectTo },
                     });
+                    if (error) console.error(error);
                 });
 
                 btnLogout.addEventListener("click", async () => {
@@ -234,7 +244,6 @@
                 btnSave.addEventListener("click", async () => {
                     const { data } = await supabase.auth.getUser();
                     if (!data.user) return;
-
                     let avatarUrl = null;
                     if (uploadAvatar.files.length > 0) {
                         const file = uploadAvatar.files[0];
@@ -249,14 +258,10 @@
                                 .from("avatars")
                                 .getPublicUrl(filePath);
                             avatarUrl = publicUrl.publicUrl;
-                        } else {
-                            console.error(uploadError);
-                        }
+                        } else console.error(uploadError);
                     }
-
                     const updates = { name: editName.value };
                     if (avatarUrl) updates.avatar_url = avatarUrl;
-
                     const { error } = await supabase
                         .from("profiles")
                         .update(updates)
@@ -265,21 +270,17 @@
                     else showProfile(data.user.email);
                 });
 
-                const { data } = await supabase.auth.getSession();
-                if (data.session?.user) {
-                    await ensureProfile(data.session.user);
-                    await showProfile(data.session.user.email);
-                } else {
-                    showSignedOut();
-                }
+                const { data: sessionData } = await supabase.auth.getSession();
+                if (sessionData.session?.user) {
+                    await ensureProfile(sessionData.session.user);
+                    await showProfile(sessionData.session.user.email);
+                } else showSignedOut();
 
                 supabase.auth.onAuthStateChange(async (event, session) => {
                     if (session?.user) {
                         await ensureProfile(session.user);
                         await showProfile(session.user.email);
-                    } else {
-                        showSignedOut();
-                    }
+                    } else showSignedOut();
                 });
             }
 
